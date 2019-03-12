@@ -1,6 +1,8 @@
 from keras.callbacks import LearningRateScheduler, TensorBoard, ModelCheckpoint, Callback
 import tensorflow as tf
-
+import keras.backend as K
+from PIL import Image
+import io
 
 
 class CustomModelCheckpoint(Callback):
@@ -45,10 +47,11 @@ def make_image_summary(tensor):
 						 encoded_image_string=image_string)
 				
 class CustomTensorBoard(TensorBoard):
-	def __init__(self, log_dir, score_map_loss_weight, small_text_weight, data_generator, write_graph=False):
+	def __init__(self, log_dir, score_map_loss_weight, small_text_weight, data_generator, FLAGS, write_graph=False):
 		self.score_map_loss_weight = score_map_loss_weight
 		self.small_text_weight = small_text_weight
 		self.data_generator = data_generator
+		self.FLAGS =FLAGS
 		super(CustomTensorBoard, self).__init__(log_dir=log_dir, write_graph=write_graph)
 
 	def on_epoch_end(self, epoch, logs=None):        
@@ -68,8 +71,8 @@ class CustomTensorBoard(TensorBoard):
 			img_summaries.append(tf.Summary.Value(tag='score_map_target/%d' % i, image=target_score_map_summary))
 			img_summaries.append(tf.Summary.Value(tag='score_map_pred/%d' % i, image=pred_score_map_summary))
 			for j in range(4):
-				target_geo_map_summary = make_image_summary((data[1][1][i, :, :, j] / FLAGS.input_size * 255).astype('uint8'))
-				pred_geo_map_summary = make_image_summary((pred_geo_maps[i, :, :, j] / FLAGS.input_size * 255).astype('uint8'))
+				target_geo_map_summary = make_image_summary((data[1][1][i, :, :, j] / self.FLAGS.input_size * 255).astype('uint8'))
+				pred_geo_map_summary = make_image_summary((pred_geo_maps[i, :, :, j] / self.FLAGS.input_size * 255).astype('uint8'))
 				img_summaries.append(tf.Summary.Value(tag='geo_map_%d_target/%d' % (j, i), image=target_geo_map_summary))
 				img_summaries.append(tf.Summary.Value(tag='geo_map_%d_pred/%d' % (j, i), image=pred_geo_map_summary))
 			target_geo_map_summary = make_image_summary(((data[1][1][i, :, :, 4] + 1) * 127.5).astype('uint8'))
@@ -92,17 +95,18 @@ class SmallTextWeight(Callback):
 
 		
 class ValidationEvaluator(Callback):
-	def __init__(self, validation_data, validation_log_dir, period=5):
+	def __init__(self, validation_data, validation_log_dir, FLAGS, period=5):
 		super(Callback, self).__init__()
 
 		self.period = period
 		self.validation_data = validation_data
 		self.validation_log_dir = validation_log_dir
+		self.FLAGS = FLAGS
 		self.val_writer = tf.summary.FileWriter(self.validation_log_dir)
 
 	def on_epoch_end(self, epoch, logs={}):
 		if (epoch + 1) % self.period == 0:
-			val_loss, val_score_map_loss, val_geo_map_loss = self.model.evaluate([self.validation_data[0], self.validation_data[1], self.validation_data[2], self.validation_data[3]], [self.validation_data[3], self.validation_data[4]], batch_size=FLAGS.batch_size)
+			val_loss, val_score_map_loss, val_geo_map_loss = self.model.evaluate([self.validation_data[0], self.validation_data[1], self.validation_data[2], self.validation_data[3]], [self.validation_data[3], self.validation_data[4]], batch_size=self.FLAGS.batch_size)
 			print('\nEpoch %d: val_loss: %.4f, val_score_map_loss: %.4f, val_geo_map_loss: %.4f' % (epoch + 1, val_loss, val_score_map_loss, val_geo_map_loss))
 			val_loss_summary = tf.Summary()
 			val_loss_summary_value = val_loss_summary.value.add()
@@ -134,8 +138,8 @@ class ValidationEvaluator(Callback):
 				img_summaries.append(tf.Summary.Value(tag='score_map_target/%d' % i, image=target_score_map_summary))
 				img_summaries.append(tf.Summary.Value(tag='score_map_pred/%d' % i, image=pred_score_map_summary))
 				for j in range(4):
-					target_geo_map_summary = make_image_summary((self.validation_data[4][i, :, :, j] / FLAGS.input_size * 255).astype('uint8'))
-					pred_geo_map_summary = make_image_summary((pred_geo_maps[i, :, :, j] / FLAGS.input_size * 255).astype('uint8'))
+					target_geo_map_summary = make_image_summary((self.validation_data[4][i, :, :, j] / self.FLAGS.input_size * 255).astype('uint8'))
+					pred_geo_map_summary = make_image_summary((pred_geo_maps[i, :, :, j] / self.FLAGS.input_size * 255).astype('uint8'))
 					img_summaries.append(tf.Summary.Value(tag='geo_map_%d_target/%d' % (j, i), image=target_geo_map_summary))
 					img_summaries.append(tf.Summary.Value(tag='geo_map_%d_pred/%d' % (j, i), image=pred_geo_map_summary))
 				target_geo_map_summary = make_image_summary(((self.validation_data[4][i, :, :, 4] + 1) * 127.5).astype('uint8'))

@@ -6,9 +6,10 @@ import math
 import numpy as np
 from myFunctions import *
 import random
-import CRNN.myModel as CRNN
+from CRNN.myModel import *
 
 from keras.models import model_from_json
+from keras import backend as K
 import tensorflow as tf
 import gc
 
@@ -16,7 +17,7 @@ from EAST.for_detect import *
 
 import time
 
-CRNN_weights = "weights_crnn.h5"
+CRNN_weights = "./weights_crnn.h5"
 
 EAST_model_file ='./model_east.json'
 EAST_weighst = "./weights_east.h5"
@@ -49,10 +50,12 @@ def predict_boxes(whole_image):
 		boxes[:, :, 1] /= ratio_h
 
 	rects = order_rects(boxes)
+	K.clear_session()
+
 	return rects
 
 def translate(whole_image, rects):
-	CRNN_model, y_pred, inputs = CRNN.get_Model(False)
+	CRNN_model, y_pred, inputs = get_Model(False)
 	CRNN_model.load_weights(CRNN_weights)
 
 	whole_image_gray = cv2.cvtColor(whole_image,cv2.COLOR_RGB2GRAY)
@@ -65,8 +68,8 @@ def translate(whole_image, rects):
 			x,y,w,h = rect
 			word_image = whole_image_gray[y:(y+h), x:(x+w)]
 			#data_words.append(word_image)
-			new_image, _ = pad_image(word_image, [], CRNN.WIDTH, CRNN.HEIGHT)
-			translation += CRNN.predict(CRNN_model, new_image) + " "
+			new_image, _ = pad_image(word_image, [], WIDTH, HEIGHT)
+			translation += predict(CRNN_model, new_image) + " "
 		text.append(translation)# += "\n"
 
 	return text

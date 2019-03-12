@@ -14,6 +14,13 @@ from keras.preprocessing import image
 import keras.callbacks
 import datetime
 
+import random 
+
+def uniqueid():
+    seed = random.getrandbits(32)
+    while True:
+       yield seed
+       seed += 1
 
 def order_rects(predicted_boxes):
 	
@@ -90,7 +97,6 @@ def uniforming_brightness(image, mean_cible):
 				for j in range(image.shape[1]):
 					image[i][j] = min(max(0., image[i][j]), 1.)
 	else:
-
 		if mean < mean_cible:
 			lim = 255 - int(mean_cible - mean)
 			image[image >= lim] = 255
