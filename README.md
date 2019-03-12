@@ -5,6 +5,7 @@
 First run these two command lines:
 
 git clone https://github.com/p0ete/Handwritting-Reading.git
+
 conda create -n new environment --file requirements.txt
 
 ## Demonstration
